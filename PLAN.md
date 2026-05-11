@@ -126,56 +126,112 @@ Sami patterns koje sam pokrio (FastAPI, idempotency, queue, worker, retry) su mi
 
 ---
 
-## PRIORITETI ZA 4 DANA — by importance
+## EXPANDED SCOPE — Demir's senior-level problem awareness
 
-### #1 — SOPHIE ARHITEKTURA (najveći gap, SRI)
-Moj mental model je trenutno **PravoAI (Q&A search)**, ne Sophie (event-driven trigger).
+Demir je sam imenovao **prave senior probleme** koje Sophie/Prospera ima u produkciji. Pokrivamo ih u kodu:
 
-Ako Sergio pita "walk me through Sophie" i ja opišem PravoAI — minus.
+| Problem | Šta to znači | Kad gradimo |
+|---|---|---|
+| **Temporal weighting** | "Bio anksiozan 5 god, sad nije" — recency decay | Wed |
+| **Memory / state** | Šta sistem zna o klijentu kroz vrijeme | Tue |
+| **Suppression** | "Već poslao isti signal pre 3 dana, ne ponavljaj" | Tue |
+| **Multi-tenant isolation** | Advisor A ne smije vidjeti podatke advisor-a B | Tonight |
+| **Bulk onboarding** | Kako prebaciti 1100 advisora bez downtime-a | Tue |
+| **Score combination** | Confidence × recency × advisor preference | Wed |
+| **A/B advisor prefs** | Neki advisori žele sve signale, neki high-confidence only | Tonight |
+| **Stale data handling** | Email od pre 6 mjeseci nije isti signal kao danas | Wed |
+| **Backfill vs incremental** | Onboarding = sve istorijski + live | Tue |
+| **Rate limiting per tenant** | 1 advisor ne smije pojesti sve LLM cikluse | Tue |
 
-**Akcija (SRI 2-3h):** drill na event-driven mental model.
-- Signal extraction layer
-- Multi-agent orchestration (extract → score → notify)
-- Personalization per-advisor
-- Compliance/audit
-- Crtanje arhitekture + verbalizacija na engleskom
+Ovi problemi razdvajaju **mid kandidate** od **senior kandidata** u Sergio očima.
 
-### #2 — RELIABILITY u kodu (UTO)
-Završi retry/DLQ/circuit breaker u `moments`. Talking point:
-*"I implemented retry+backoff+jitter when my mock LLM fails — same pattern I'd use for real LLM API."*
+---
 
-**Akcija (UTO ~3h):**
-- Retry test (provjeri da radi)
-- DLQ tabela + flow za 3 retry-a fail-a
-- Circuit breaker (5 fail-ova → open)
-- Caching (opciono)
+## PRISTUP — CODE-FIRST + INSTANT VERBAL (Demir's learning style)
 
-### #3 — MULTI-TENANT + 1100 ADVISORA ONBOARDING (SRI)
-Lina **eksplicitno** spomenula. Sergio će sigurno pitati.
+Demir uči **kroz pravljenje + testiranje**, ne kroz suvi teoretski drill (boring + ne ostaje).
 
-**Akcija (SRI 1.5h):**
-- Tenant_id u svakom event-u (već postoji u schemi)
-- Onboarding flow: kako migrirati 1100 advisora
-- Data isolation strategija
-- Bulk ingestion sa retry/error handling
-- Plan po fazama (pilot 50 → 500 → 1100)
+**Posle SVAKE pattern koju izgradimo:**
+1. **Build** (15-30 min) — pišem kod
+2. **Test** (5 min) — pokrenem, vidim da radi
+3. **Verbal walkthrough** (5-10 min) — TI objašnjavaš MENI na ENGLESKOM kao da sam Sergio
+4. Feedback + talking-point fraze za zapamtiti
 
-### #4 — RAG DEPTH (PravoAI v2 story, ČET)
-Tvoja strongest play. Treba je odbraniti čisto na engleskom — brojevi, failure modes, decisions.
+Tako gradimo **fluency + dubinsko razumijevanje** istovremeno, bez dosade.
 
-**Akcija (ČET 1.5h):**
-- Polish 60-sek priče
-- Pripremi follow-up answers (eval, hybrid search detalji, reranking, citation grounding)
-- Konkretni brojevi (koliko docs, koja arhitektura, koji rezultati)
+Sav drugi verbal drill (auth, real LLM, deployment, cloud) — **kompaktno u ČET mock interview**.
 
-### #5 — MOCK INTERVIEW (ČET)
-Full simulacija na engleskom. Claude = Sergio, ja = ja. Feedback gdje pucam.
+---
 
-**Akcija (ČET 2h):**
-- 30 min PravoAI deep dive
-- 30 min Sophie arhitektura
-- 30 min reliability/scaling pitanja
-- 30 min behavioral (zašto Prospera, why now, gaps)
+## SPRINT PLAN — DEADLINE PETAK 6 PM
+
+Cilj: završiti SVE do **petak 18:00**. Interview poslije.
+
+### TONIGHT (Mon eve 2026-05-11) — 2-2.5h
+- ✅ DLQ završeno
+- 🔲 **Circuit breaker** (30 min build + 10 min verbal)
+- 🔲 **Multi-tenant enforcement** (45 min build + 10 min verbal)
+- 🔲 **Tenant config tabela** + 5 min verbal (35 min)
+- 🔲 Commit + push
+
+### TUE 2026-05-12 (Day 3) — 4-5h
+- 🔲 **Bulk onboarding endpoint** (1h build + 10 min verbal)
+- 🔲 **Rate limiting per tenant** (45 min build + 10 min verbal)
+- 🔲 **Suppression rules** (45 min build + 10 min verbal)
+- 🔲 **Client memory tabela** (45 min build + 10 min verbal)
+- 🔲 Commit + push
+
+### WED 2026-05-13 (Day 4) — 4-5h
+- 🔲 **Temporal weighting** (1h build + 10 min verbal)
+- 🔲 **Multi-agent orchestration** (1.5h build + 15 min verbal)
+- 🔲 **Score combination** (45 min build + 10 min verbal)
+- 🔲 **Sophie arhitektura drill** (1h verbal — crtanje + objašnjenje na engleskom)
+- 🔲 Commit + push
+
+### THU 2026-05-14 (Day 5) — 4-5h
+- 🔲 **Observability** (45 min build) — strukturirani logs + counters
+- 🔲 **PravoAI story v2 polish** (1h verbal) — engleski narrative
+- 🔲 **Breadth verbal drill** (1h) — auth, real LLM SDK, vector DB, deployment, cost
+- 🔲 **MOCK INTERVIEW** (1.5-2h) — full simulacija sa feedback-om
+
+### FRI 2026-05-15 — do 18:00
+- 🔲 **Jutro (~2h):** ponovo PravoAI story + Sophie arhitektura naglas
+- 🔲 **Popodne (~2h):** breadth questions drill (sve crveno iz tabele)
+- 🔲 **18:00:** kraj prep-a, odmori se do intervjua
+- 🔲 Interview sa Sergio (vrijeme TBD, vjerovatno popodne/veče)
+
+**Ukupno preostalog rada: ~15-18h kroz 5 sesija.** Realističan workload za nekoga ko stvarno gura.
+
+---
+
+## EXPANDED TALKING POINTS — sa novim scope-om
+
+### Temporal weighting
+> *"Signal recency matters. A 'client seems anxious' signal from yesterday isn't the same as one from 5 years ago. I implement exponential decay — `final_score = base_score × e^(-λ × age_days)`. Old signals fade naturally; recent ones dominate."*
+
+### Suppression / anti-fatigue
+> *"Anti-fatigue is critical for advisor trust. If I sent the same signal type 3 days ago, I won't re-send it. Per (advisor, client, signal_type) cooldown tracked in `last_signaled_at`. Tunable per advisor preference."*
+
+### Multi-tenant + onboarding 1100 advisors
+> *"Bulk onboarding goes in phases: pilot 50, ramp 500, full 1100. Each batch is idempotent — re-runnable on partial failure. Per-tenant rate limit prevents a single advisor's backfill from starving live traffic. Tenant_id enforced at query level — no shared state across advisors."*
+
+### Score combination
+> *"Final score combines multiple inputs: LLM confidence × temporal_decay × advisor_sensitivity. The LLM is one input, not the entire decision. Production-realistic — the model doesn't decide alone, the system does."*
+
+### Client memory
+> *"Sophie needs to remember context per client — life events, preferences, past interactions. Without memory, every signal is judged in isolation. Memory store grows incrementally as signals process."*
+
+---
+
+## ZAŠTO TO IMPRESIONIRA SERGIJA
+
+Sergio na LinkedIn-u eksplicitno traži *"depth, taste, judgment, real interest in building."*
+
+Demonstracija problema iznad pokazuje:
+- **Taste** — bira pravi problem (ne samo "build CRUD")
+- **Depth** — razumiješ što su **state** i **memory** u AI sistemima
+- **Judgment** — koje su **tradeoff** odluke (decay rate, suppression window)
+- **Real interest** — Demir je sam pomenuo: temporal weighting, memory, suppression. To je hardcore engineer thinking.
 
 ---
 

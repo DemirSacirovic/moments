@@ -14,7 +14,7 @@ def extract_signal(content: str) -> dict:
     time.sleep(delay)
 
     #Simulate 15% failure rate
-    if random.random() < 0.15:
+    if random.random() < 0.95:
         raise LLMError("Mock LLM faield (simulated transient error)")
 
     # Fake "scoring"
