@@ -57,3 +57,25 @@ def insert_event(
             (event_id, job_id, tenant_id, client_id, event_type, occurred_at, content),
         )
         conn.commit()
+
+def get_next_queued_event() -> sqlite3.Row | None:
+    """Return the oldest queued event, or None if queue id empty."""
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM events
+            WHERE status = 'queued'
+            ORDER BY created_at ASC
+            LIMIT 1
+            """
+        )
+        return cursor.fetchone()
+
+def update_event_status(event_id: str, status: str) -> None:
+    """Update an event's status."""
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE events SET status = ? WHERE event_id = ?",
+            (status, event_id),
+        )
+        conn.commit()
