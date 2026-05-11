@@ -26,6 +26,16 @@ def init_db() -> None:
                 created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dead_letter (
+                event_id        TEXT PRIMARY KEY,
+                error_message   TEXT NOT NULL,
+                attempts        INTEGER NOT NULL,
+                content         TEXT NOT NULL,
+                tenant_id      TEXT NOT NULL,
+                failed_at       TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         conn.commit()
 
 def find_event(event_id: str) -> sqlite3.Row | None:
@@ -77,5 +87,28 @@ def update_event_status(event_id: str, status: str) -> None:
         conn.execute(
             "UPDATE events SET status = ? WHERE event_id = ?",
             (status, event_id),
+        )
+        conn.commit()
+
+def move_to_dlq(
+    event_id: str,
+    error_message: str,
+    attempts: int,
+    content: str,
+    tenant_id: str,
+) -> None:
+    """Insert a failed event into dead_letter and mark original as failed."""
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO dead_letter
+                (event_id, error_message, attempts, content, tenant_id)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (event_id, error_message, attempts, content, tenant_id),
+        )
+        conn.execute(
+            "UPDATE events SET status = 'failed' WHERE event_id = ?",
+            (event_id,),
         )
         conn.commit()

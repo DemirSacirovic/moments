@@ -1,163 +1,225 @@
 # `moments` — Sophie-inspired Signal Pipeline
 
 Tactical practice project to internalize patterns Sergio cares about.
-Built between Lina interview (2026-05-08) and Sergio interview (2026-05-15).
+Built between Lina interview (2026-05-08) and Sergio interview (~2026-05-15).
 
 ---
 
-## STATUS — gdje smo (2026-05-10)
+## STATUS — gdje smo (2026-05-11 popodne)
 
-### ✅ Završeno (Day 1 — Sunday)
+### ✅ Day 1 (Sun 2026-05-10)
+- FastAPI app + decorators
+- Pydantic schemas + validation (422 testirano)
+- SQLite persistence + connection helper
+- `POST /event` endpoint
+- **Idempotency** (PRIMARY KEY na event_id)
+- **Parameterized queries** (SQL injection prevention)
+- HTTP statuses (200, 422, 404)
 
-| # | Šta | Fajl |
-|---|---|---|
-| 1 | FastAPI app sa decorator-ima | `app/main.py` |
-| 2 | Pydantic schemas + validacija | `app/schemas.py` |
-| 3 | SQLite persistence + connection helper | `app/db.py` |
-| 4 | `POST /event` endpoint | `app/main.py` |
-| 5 | Idempotency (PRIMARY KEY na event_id) | `app/db.py` + `app/main.py` |
-| 6 | Parameterized queries (SQL injection prevention) | `app/db.py` |
-| 7 | HTTP status codes (200, 422) — testiran 422 | tested |
+### ✅ Day 2 (Mon 2026-05-11)
+- GitHub repo setup → push (`github.com/DemirSacirovic/moments`, public)
+- macOS Keychain za PAT
+- **Mock LLM** (`app/llm.py`) — random delay + 15% deliberate failure
+- **Queue helpers** u `db.py` — `get_next_queued_event`, `update_event_status`
+- **Background worker** (`app/worker.py`) — polling loop, status state machine
+- **Full e2e test** — POST /event → worker pickup → done
+- 🟡 **Retry + exponential backoff + jitter** — kod napisan, NIJE testiran još
 
 ### 📊 Linije koda
-~200 linija, sve napisano ručno (bez copy-paste), sve razumijem na nivou *"prepoznajem kad mi pokažeš"*.
+~300 linija, sve napisano ručno, sve razumije na nivou *"prepoznajem"* (nivo 1-2).
 
 ---
 
 ## ARHITEKTURA — trenutno
 
 ```
-┌──────────────┐     ┌──────────────┐
-│ Klijent      │ POST│  FastAPI     │
-│ (curl /      │ ──> │  main.py     │
-│  Swagger UI) │ <── │              │
-└──────────────┘ 200 └──────┬───────┘
-                            │
-                            ▼
-                    ┌──────────────┐
-                    │ db.py        │
-                    │ - find_event │  ← idempotency check
-                    │ - insert     │
-                    └──────┬───────┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │ moments.db   │
-                    │ (SQLite)     │
-                    └──────────────┘
-```
-
----
-
-## ARHITEKTURA — gdje idemo
-
-```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ Klijent      │ ──> │  API         │ ──> │ DB / Queue   │
-└──────────────┘     │  (main.py)   │     │ (events tbl) │
+│ Klijent      │ ──> │  API         │ ──> │ moments.db   │
+│ (Swagger UI) │     │  main.py     │     │ events tbl   │
+└──────────────┘     │  (sync)      │     │ status field │
                      └──────────────┘     └──────┬───────┘
-                                                 │ pop
+                                                 │ polling
                                                  ▼
                                           ┌──────────────┐
                                           │ Worker       │
-                                          │ (worker.py)  │
                                           │ - mock LLM   │
                                           │ - retry      │
-                                          │ - DLQ        │
+                                          │ - status     │
+                                          │   transitions│
                                           └──────────────┘
 ```
 
+API i worker su **odvojeni procesi**. Komunikacija kroz DB.
+
 ---
 
-## KONCEPTI — gdje sam svjesno
+## KONCEPTI — gdje sam svjesno (post Day 2)
 
 ### 🟢 Razumijem (mogu objasniti svojim riječima)
-
-- **FastAPI request lifecycle** — decorator → potpis → tijelo
-- **Pydantic schemas** — `BaseModel`, `Field`, `Enum`, validacija
-- **Klasa vs instanca** — klasa = nacrt, instanca = stvarna stvar
-- **HTTP statusi** — 200, 422, 404
+- FastAPI request lifecycle, decorators, type hints
+- Pydantic BaseModel, Field, Enum, validation, response_model
+- Klasa vs instanca
+- HTTP statusi (200, 422, 404, 500)
 - **Idempotency** — isti event_id → isti job_id (PRIMARY KEY)
-- **Mutable default gotcha** — `default_factory=dict` umjesto `default={}`
-- **Case sensitivity u Pythonu**
+- **Parameterized queries** — separation of code and data
+- Mutable default gotcha (`default_factory`)
+- Case sensitivity, dunder atributi
+- Decorators (concept + FastAPI use)
+- Mock vs real LLM — when and why
+- Status state machine (queued → processing → done/failed)
 
-### 🟡 Razumijem djelimično (treba još jedan-dva prolaska)
+### 🟡 Razumijem djelimično
+- **Sync/Async/Background decision** — 4/5 scenarija tačno, fluentnost treba
+- **`if __name__ == '__main__'`** — koncept hvataš, mehanizam mut
+- **Retry + backoff + jitter** — kod napisan, nije live testiran
+- **Race conditions u workeru** — pomenuto, nije rješavano
 
-- **Parameterized queries** — znam pravilo (`?` placeholder), mehanizam tek hvatam
-- **Sync vs async vs background** — koncept jasan, decision tree treba praksu
-- **Mutable default factory** — pravilo OK, *zašto* još nije skroz
-- **`response_model` vs `-> Type`** — funkcionalnost OK, kad koristiti šta još mut
-
-### 🔴 Tek upoznajem (sutra)
-
-- **Background worker pattern** — koncept skiciran, nije u kodu
-- **Queue pattern** — koncept skiciran, nije u kodu
-- **Retry + exponential backoff + jitter** — nije rađeno
-- **Circuit breaker** — nije rađeno
-- **Dead Letter Queue (DLQ)** — nije rađeno
-- **Caching** — nije rađeno
-- **Multi-tenant config** — koncept jasan, kod nije
-- **RAG-specific:** hybrid search, reranking, eval — nije rađeno
-
----
-
-## SLEDEĆI KORACI — 4 dana do intervjua
-
-### PON 2026-05-11 (Day 2) — ~5h
-- 15 min recap + active recall (engleski)
-- 30 min sync/async drill (decision matrix u praksi)
-- 1.5h **Background worker skeleton** — `app/worker.py`
-- 1.5h **Mock LLM** — fake LLM koji random kasni i pukne
-- 1h Refactor — povezati API → queue → worker
-- TEST: pošalji event → vidi da worker pokupi → vidi da update-uje status
-
-### UTO 2026-05-12 (Day 3) — ~4h
-- 15 min recap
-- 1.5h **Retry + exponential backoff + jitter**
-- 1h **Circuit breaker** (5 fail-ova → "open")
-- 1h **DLQ** (failed events u posebnu tabelu)
-- 1h **Caching** (cache LLM responses sa TTL)
-
-### SRI 2026-05-13 (Day 4) — ~5h
-- 15 min recap
-- 2h **Sophie arhitektura** — drill na event-driven mental model
-- 1.5h **Multi-tenant config** — tenant_id u svakom event-u
-- 1h **Observability** — strukturirani logs, brojači
-- 1h **Eval harness** — small golden set, precision/recall
-
-### ČET 2026-05-14 (Day 5) — ~4h
-- 1h Polish kod, README
-- 1h Polish PravoAI story v2 (technical version)
-- 2h **Mock interview sa Claude-om** (full simulation)
-
-### PET 2026-05-15
-- 1-2h light review ujutru
-- Interview sa Sergio
+### 🔴 Tek upoznajem
+- Circuit breaker
+- Dead Letter Queue (DLQ)
+- Caching strategija
+- Multi-tenant isolation
+- **Sophie arhitektura** (event-driven, NE Q&A!) — najveći gap
+- RAG-specific: hybrid search, reranking, eval framework
+- Observability (structured logging, metrics, traces)
 
 ---
 
-## ŠTA TREBA REĆI U INTERVJUU — talking points sa moments
+## NIVO PROJEKTA vs ŠTO ONI TRAŽE
+
+### Patterns demonstrated → **mid-level**
+Sami patterns koje sam pokrio (FastAPI, idempotency, queue, worker, retry) su mid-level. Iznad junior-a, ispod senior-a.
+
+### Šta nedostaje da bude "senior portfolio piece"
+- Async/await kroz stack (sync currently)
+- Pravi message broker (Redis/RabbitMQ)
+- Concurrency safety (race conditions postoje)
+- Strukturirani logging + metrike (samo `print()`)
+- Test suite (0 testova)
+- Type checker (mypy) — nije provjereno
+- Config kroz env vars + pydantic-settings
+- Distributed tracing
+- Real LLM + rate limiter
+- Observability dashboard
+- CI/CD pipeline
+- Multi-tenant row-level isolation
+- Eval framework za LLM
+
+### Šta Sergio TRAŽI (procjena na osnovu Lina + JD + LinkedIn)
+- **Mid-Senior backend AI** ($5-7.5k/mo — salary range)
+- Generalist (5-osoblje)
+- Praktično operativno (reliability, onboarding 1100 advisora)
+- "Depth, taste, judgment" — NIJE leetcode
+- Komunikacija + biznis razumijevanje
+- Shipper, ne istraživač (već imaju paying customers)
+
+### Gdje sam ja u poređenju
+- Backend patterns: junior-mid (gap)
+- AI/RAG depth: senior (PravoAI) ✅
+- Pisanje iz glave: junior (gap)
+- Sophie domain razumijevanje: junior (gap koji moram da popravim)
+- Engineering taste: mid (raste)
+- Honest komunikacija: senior ✅
+- Brzina učenja: senior ✅
+
+**Net realno:** $5-6k range, ne $7k osim ako mock interview pokaže izvanrednost.
+
+---
+
+## PRIORITETI ZA 4 DANA — by importance
+
+### #1 — SOPHIE ARHITEKTURA (najveći gap, SRI)
+Moj mental model je trenutno **PravoAI (Q&A search)**, ne Sophie (event-driven trigger).
+
+Ako Sergio pita "walk me through Sophie" i ja opišem PravoAI — minus.
+
+**Akcija (SRI 2-3h):** drill na event-driven mental model.
+- Signal extraction layer
+- Multi-agent orchestration (extract → score → notify)
+- Personalization per-advisor
+- Compliance/audit
+- Crtanje arhitekture + verbalizacija na engleskom
+
+### #2 — RELIABILITY u kodu (UTO)
+Završi retry/DLQ/circuit breaker u `moments`. Talking point:
+*"I implemented retry+backoff+jitter when my mock LLM fails — same pattern I'd use for real LLM API."*
+
+**Akcija (UTO ~3h):**
+- Retry test (provjeri da radi)
+- DLQ tabela + flow za 3 retry-a fail-a
+- Circuit breaker (5 fail-ova → open)
+- Caching (opciono)
+
+### #3 — MULTI-TENANT + 1100 ADVISORA ONBOARDING (SRI)
+Lina **eksplicitno** spomenula. Sergio će sigurno pitati.
+
+**Akcija (SRI 1.5h):**
+- Tenant_id u svakom event-u (već postoji u schemi)
+- Onboarding flow: kako migrirati 1100 advisora
+- Data isolation strategija
+- Bulk ingestion sa retry/error handling
+- Plan po fazama (pilot 50 → 500 → 1100)
+
+### #4 — RAG DEPTH (PravoAI v2 story, ČET)
+Tvoja strongest play. Treba je odbraniti čisto na engleskom — brojevi, failure modes, decisions.
+
+**Akcija (ČET 1.5h):**
+- Polish 60-sek priče
+- Pripremi follow-up answers (eval, hybrid search detalji, reranking, citation grounding)
+- Konkretni brojevi (koliko docs, koja arhitektura, koji rezultati)
+
+### #5 — MOCK INTERVIEW (ČET)
+Full simulacija na engleskom. Claude = Sergio, ja = ja. Feedback gdje pucam.
+
+**Akcija (ČET 2h):**
+- 30 min PravoAI deep dive
+- 30 min Sophie arhitektura
+- 30 min reliability/scaling pitanja
+- 30 min behavioral (zašto Prospera, why now, gaps)
+
+---
+
+## ŠTA **NE** RADITI (waste of time)
+
+- ❌ Multi-agent sistem from scratch
+- ❌ Dubok async (gubim dan, ne pita specifične primitive)
+- ❌ Real LLM integracija (skupo, ne dodaje signal)
+- ❌ Real message broker (overkill)
+- ❌ Novi frameworki (SQLAlchemy, Celery — ostani sa znanim)
+- ❌ Leetcode (Sergio ne traži)
+- ❌ "I'll learn anything" mantra (show don't tell)
+- ❌ Pretvarati se da je projekat senior-level
+
+---
+
+## TALKING POINTS — sa moments koda
 
 ### 1. Idempotency
-> *"Every POST /event includes a client-supplied event_id. I store it as PRIMARY KEY. If the same event_id arrives twice — network retry — I return the existing job_id, no duplicate processing. Idempotency at the storage layer, not just at the application layer."*
+> *"Every POST /event includes a client-supplied event_id stored as PRIMARY KEY. Retry returns existing job_id, no duplicate processing. Idempotency at the storage layer."*
 
 ### 2. Parameterized queries
-> *"Every query uses ? placeholders with a tuple of values. SQL injection is impossible by construction, not by sanitization."*
+> *"Every query uses ? placeholders. SQL injection impossible by construction, not by sanitization."*
 
-### 3. Sync vs Async vs Background (decision)
-> *"Three questions: How long? What does it wait for? Does the user need an immediate answer? Background workers for >5s tasks, async for I/O-bound, sync as default for fast deterministic work."*
+### 3. Sync/Async/Background decision
+> *"Three questions: how long, what does it wait for, does the user need an immediate answer."*
 
 ### 4. Validation at boundary
-> *"Pydantic schemas at every API boundary. Wrong input gets 422 with a structured error response. By the time data reaches my db layer, types are guaranteed."*
+> *"Pydantic at every API boundary. Wrong input gets 422 with structured errors. By db layer, types guaranteed."*
 
-### 5. Architecture (kad bude worker)
-> *"API and worker are separate processes. API publishes to a queue, worker consumes. Each can scale independently. Failures retry from the queue with backoff, and poison messages go to a DLQ."*
+### 5. API/Worker decoupling
+> *"API and worker are separate processes. API publishes via DB, worker polls. Each scales independently. Failures retry from queue, poison messages to DLQ."*
+
+### 6. Deliberate failure for testing reliability
+> *"My mock LLM fails 15% of the time on purpose. Real LLM almost never fails on a test bench — but I needed deterministic failures to validate retry/backoff. In production I'd swap mock with the real client behind the same interface."*
+
+### 7. (Posle SRI) Sophie architecture
+> *"Sophie is event-driven, not query-driven. Signal sources → ingestion → extraction → scoring → notification. The hard part isn't the LLM — it's the signal layer and personalization per advisor."*
 
 ---
 
-## SOPHIE PARALELA — koju treba držati u glavi
+## SOPHIE PARALELA — `moments` ↔ Sophie
 
-| moments (moj demo) | Sophie (Prospera) |
+| moments (demo) | Sophie (Prospera) |
 |---|---|
 | `event_id` | `signal_id` |
 | `tenant_id` | `advisor_id` |
@@ -166,32 +228,46 @@ Built between Lina interview (2026-05-08) and Sergio interview (2026-05-15).
 | Mock LLM "is this a moment?" | Real multi-agent scoring |
 | 1 worker (extract) | 3+ workers (extract → score → notify) |
 | sqlite | Postgres + vector DB |
+| Polling (2s) | Real broker (push) |
+| `print()` | OpenTelemetry, structured logs |
+| Single tenant DB | Row-level multi-tenant isolation |
 
-**Ključna paralela:** *event-driven, pull-based ingestion → queue → workers → action.*
+**KLJUČ:** event-driven, pull-based ingestion → queue → workers → action.
+NIJE Q&A (kao PravoAI). NIJE RAG search. To je **trigger system** koji odlučuje *"WHEN to act"*.
 
-Nije Q&A search (kao PravoAI). Nije RAG search. To je **trigger system** koji odlučuje *"WHEN to act"*, ne *"WHAT to retrieve"*.
+---
+
+## STRATEGIJA U INTERVJUU
+
+1. **Honest gap framing** — Sergio detektuje BS u 30 sekundi
+2. **PravoAI depth prvo** — strongest play
+3. **Sophie arhitektura razumijevanje** — pokazi event-driven, ne search
+4. **Multi-tenant konkretan plan** — ako pita za 1100 advisora
+5. **Ne snižuj $7k anchor** — *"That's where I'm at. Understand if scope lands lower."*
+6. **Pitanja za njega** — radoznalost, ne pretenzija
+7. **Brzina učenja** — *"This in 5 days, here's what I built and what I learned"*
 
 ---
 
 ## KAKO POKRENUTI — quick reference
 
 ```bash
-# Aktiviraj venv
+# Setup
 cd ~/Desktop/PROJECTS/moments
 source venv/bin/activate
 
-# Pokreni server
+# Terminal 1: API
 uvicorn app.main:app --reload
 
-# Open browser
-http://127.0.0.1:8000/docs
+# Terminal 2: Worker
+python -m app.worker
 
-# DB inspekcija
+# Terminal 3: Slobodan za komande
 sqlite3 moments.db "SELECT * FROM events"
 sqlite3 moments.db ".schema"
 
-# Brzi test
-python -c "from app.db import find_event; print(find_event('test-x1'))"
+# Open browser
+http://127.0.0.1:8000/docs
 ```
 
 ---
@@ -200,41 +276,54 @@ python -c "from app.db import find_event; print(find_event('test-x1'))"
 
 ```
 moments/
-├── PLAN.md                    ← ovaj fajl
-├── README.md                  ← (TODO za petak)
+├── PLAN.md                    ← ovaj fajl (master plan)
+├── README.md                  ← TODO za petak
 ├── moments.db                 ← SQLite (gitignored)
-├── .env                       ← (gitignored)
+├── .env                       ← gitignored
 ├── .gitignore
-├── venv/                      ← (gitignored)
+├── venv/                      ← gitignored
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                ← FastAPI endpoint-i
 │   ├── schemas.py             ← Pydantic
-│   ├── db.py                  ← SQLite layer
-│   ├── worker.py              ← TODO ponedjeljak
-│   ├── llm.py                 ← TODO ponedjeljak (mock LLM)
-│   └── queue.py               ← TODO ponedjeljak (može biti dio db.py)
+│   ├── db.py                  ← SQLite layer + queue helpers
+│   ├── worker.py              ← Background worker
+│   └── llm.py                 ← Mock LLM
 └── tests/
-    └── __init__.py
+    └── __init__.py            (prazno)
 ```
 
 ---
 
-## OPEN QUESTIONS — što još treba da se razjasni
+## OTVORENA PITANJA (still mut)
 
-- [ ] Sync/async u praksi: drill više primjera dok ne klikne
-- [ ] Parameterized queries — *zašto* placeholder je bezbjedniji od escape-a
-- [ ] Razlika thread pool (FastAPI sync handler) vs event loop (FastAPI async handler)
-- [ ] Što tačno znači "Sophie je event-driven, ne query-driven" — diagram + sample flow
-- [ ] Multi-agent orchestration — gdje agent A predaje agent B-u
+- [ ] Sync/async u praksi — više drill-a
+- [ ] `if __name__ == "__main__"` — mehanizam (parked, neće biti u intervjuu duboko)
+- [ ] Concurrency safety u worker-u (mogući race condition)
+- [ ] Pravi LLM integration (mock works for now)
+- [ ] Sophie architecture mental model (urgent fix Wed)
 
 ---
 
-## PRINCIPI KOJIH SE DRŽIMO
+## SLEDEĆI KORAK — kad se vratim sa pauze (Mon eve 2026-05-11)
 
-1. **Education mode** — Demir piše sav kod, Claude objašnjava
-2. **Concept > syntax** — bolje razumjeti zašto, nego pamtiti kako
-3. **Active recall** — povremeno provjera bez gledanja koda
-4. **Working > complete** — bolje 70% radi nego 100% planirano-fragilno
-5. **Talking points** — svaki feature mapiran u rečenicu za Sergija
-6. **NIVO objašnjenja:** Demir ima 3.5 god Python iskustva + 70 kurseva. Zna koncepte, gap je u fluentnosti pisanja iz glave. NE tretirati kao početnika — objašnjavaj mehanizme, tradeoff-e, dublju logiku. Kad pita — odgovaraj precizno, ne basic.
+1. **10 min:** retry test (pošalji 5 event-a, vidi retry print-ove)
+2. **45 min:** DLQ pattern (failed posle 3 retry-a → posebna tabela ili column)
+3. **30 min:** Circuit breaker (5 consecutive fails → open state, skip processing)
+4. **Pauza ili kraj dana**
+
+Sutra (UTO):
+- Caching (opciono)
+- SRI plan finalization
+- Početak Sophie arhitektura drill-a
+
+---
+
+## PRINCIPI
+
+1. Education mode — Demir piše kod, Claude objašnjava
+2. Concept > syntax
+3. Active recall — periodic provjera bez koda
+4. Working > complete
+5. Talking points — svaki feature mapiran u rečenicu
+6. **NIVO objašnjenja:** Demir 3.5 god Python + 70 kurseva. Zna koncepte, gap je fluentnost. NE tretirati kao početnika — mehanizmi, tradeoff-i, dublja logika. Precizno, ne basic.

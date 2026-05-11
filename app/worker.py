@@ -1,5 +1,5 @@
 import time
-from app.db import get_next_queued_event, update_event_status
+from app.db import get_next_queued_event, update_event_status, move_to_dlq
 from app.llm import extract_signal, LLMError
 import random
 
@@ -9,9 +9,9 @@ def call_with_retry(content:str) -> dict:
     """Call extract_signal with exponential backoff + jitter."""
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return extract_signal(contebt)
+            return extract_signal(content)
         except LLMError as e:
-            if attemot >= MAX_RETRIES:
+            if attempt >= MAX_RETRIES:
                 raise
             backoff = 2 ** attempt
             jitter = random.uniform(0,1)
@@ -30,8 +30,14 @@ def process_one(event) -> None:
         update_event_status(event_id, "done")
         print(f"[worker] done {event_id} -> score={result['score']}, is_moment={result['is_moment']}")
     except LLMError as e:
-        update_event_status(event_id, "failed")
-        print(f"[worker] failed {event_id}: {e}")
+        move_to_dlq(
+            event_id=event_id,
+            error_message=str(e),
+            attempts=MAX_RETRIES + 1,
+            content=event["content"],
+            tenant_id=event["tenant_id"],
+        )
+        print(f"[worker] DLQ {event_id} after {MAX_RETRIES + 1} attempts: {e}")
 
 def main_loop() -> None:
     print("[worker] started, polling for queued events...")
