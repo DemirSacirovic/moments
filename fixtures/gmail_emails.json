@@ -1,0 +1,42 @@
+[
+  {
+    "gmail_id": "msg_001",
+    "advisor_id": "advisor-maria",
+    "from": "jovan@client.com",
+    "subject": "Sold the company",
+    "body": "Hi Maria, we finalized the sale yesterday. Need to talk about tax implications.",
+    "received_at": "2026-05-10T09:15:00Z"
+  },
+  {
+    "gmail_id": "msg_002",
+    "advisor_id": "advisor-maria",
+    "from": "ana@client.com",
+    "subject": "Quick question",
+    "body": "Hi Maria, my daughter just got accepted to Harvard. We need to plan for tuition.",
+    "received_at": "2026-05-11T14:30:00Z"
+  },
+  {
+    "gmail_id": "msg_003",
+    "advisor_id": "advisor-marko",
+    "from": "petar@client.com",
+    "subject": "Concerned about market",
+    "body": "Marko, the recent volatility worries me. Should we rebalance?",
+    "received_at": "2026-05-12T08:00:00Z"
+  },
+  {
+    "gmail_id": "msg_004",
+    "advisor_id": "advisor-marko",
+    "from": "milica@client.com",
+    "subject": "RE: Investment options",
+    "body": "Thanks for the info. Let's schedule a meeting next week.",
+    "received_at": "2026-05-12T11:00:00Z"
+  },
+  {
+    "gmail_id": "msg_005",
+    "advisor_id": "advisor-maria",
+    "from": "jovan@client.com",
+    "subject": "Wire transfer confirmation",
+    "body": "Funds from sale landed. $4.2M in checking. Need investment strategy.",
+    "received_at": "2026-05-12T15:00:00Z"
+  }
+]

@@ -175,11 +175,36 @@ Cilj: završiti SVE do **petak 18:00**. Interview poslije.
 - 🔲 Commit + push
 
 ### TUE 2026-05-12 (Day 3) — 4-5h
-- 🔲 **Bulk onboarding endpoint** (1h build + 10 min verbal)
+- ✅ Active recall recap (4/6 čvrsto, 2 gap)
+- ✅ HTML prep doc redesigned (27 patterns + glossary + flashcards)
+- ✅ Bulk schemas (`BulkOnboardRequest`, `BulkOnboardResponse`)
+- ✅ `POST /onboard` endpoint code (added, not yet tested)
+- 🔲 Test POST /onboard
+- 🔲 **Mock CONNECTOR layer** (Gmail, Salesforce, Calendar) — Demir's key learning ask
 - 🔲 **Rate limiting per tenant** (45 min build + 10 min verbal)
 - 🔲 **Suppression rules** (45 min build + 10 min verbal)
 - 🔲 **Client memory tabela** (45 min build + 10 min verbal)
 - 🔲 Commit + push
+
+### IMPORTANT — Demir explicit ask 2026-05-12
+
+**Build mock connectors end-to-end to UNDERSTAND the full Sophie flow.**
+
+Demir needs to see HOW connectors actually work, not just the API endpoints. Plan:
+
+1. **Create `app/connectors/` directory**
+2. **Base connector class** (`base_connector.py`) — shared loop, error handling, POST to Sophie
+3. **Mock connector per source** (~30 lines each):
+   - `mock_gmail_connector.py` — reads from `fixtures/gmail_emails.json`, transforms to canonical, POSTs to `/onboard`
+   - `mock_salesforce_connector.py` — reads from `fixtures/sf_notes.json`
+   - `mock_calendar_connector.py` — reads from `fixtures/calendar_events.json`
+4. **Fixtures** — JSON files with fake but realistic source data (50-100 records per source)
+5. **Run all connectors** + verify events flow through to worker → done status
+6. **Webhook handler** (single-email flow) — `POST /webhooks/gmail` shows real-time path
+
+**Why this matters:** Without mock connectors, Demir doesn't have intuition for HOW data gets in. With them, he can explain the entire E2E flow with confidence to Sergio.
+
+**Sergio talking point unlocked:** *"My connectors share a base class — loop, error handling, OAuth lookup, POST to Sophie. Each source-specific connector is ~30 lines: client creation + transform. Adding a new source is a one-day task."*
 
 ### WED 2026-05-13 (Day 4) — 4-5h
 - 🔲 **Temporal weighting** (1h build + 10 min verbal)
@@ -383,3 +408,135 @@ Sutra (UTO):
 4. Working > complete
 5. Talking points — svaki feature mapiran u rečenicu
 6. **NIVO objašnjenja:** Demir 3.5 god Python + 70 kurseva. Zna koncepte, gap je fluentnost. NE tretirati kao početnika — mehanizmi, tradeoff-i, dublja logika. Precizno, ne basic.
+
+---
+
+## KOMPLETAN SOPHIE PIPELINE (end-to-end) — sve što Sergio može pitati
+
+```
+1. SOURCE LAYER
+   - Email (Gmail/Outlook API), CRM (Salesforce/HubSpot), Calendar
+   - Documents, News feeds, Transactions
+                            ↓ POST /event
+2. INGESTION LAYER
+   - Pydantic validation                ✅
+   - Idempotency (event_id)             ✅
+   - Multi-tenant tag                   🔲 sutra
+   - Rate limit per tenant              🔲 sutra
+   - Bulk endpoint                       🔲 sutra
+                            ↓
+3. STORAGE / QUEUE
+   - SQLite events table                ✅
+   - Status state machine               ✅
+   - Audit log                          🟡 verbal
+                            ↓ worker pop
+4. EXTRACTION (Agent 1)
+   - LLM call: structured signal        ✅ mock
+   - Token counting / cost              🟡 verbal
+                            ↓
+5. SCORING (Agent 2)
+   - LLM: "is this a moment?"           ✅ mock
+   - Vector similarity (RAG)            🟡 verbal (PravoAI)
+   - Reranking                          🟡 verbal (PravoAI)
+                            ↓
+6. CONTEXTUAL FILTERING
+   - Temporal weighting (decay)         🔲 sri
+   - Client memory lookup               🔲 sutra
+   - Suppression / anti-fatigue         🔲 sutra
+   - Advisor sensitivity prefs          🔲 sutra
+                            ↓
+7. NOTIFICATION (Agent 3)
+   - Channel selection                  🟡 verbal
+   - Format recommendation              🟡 verbal
+   - Audit log                          🟡 verbal
+                            ↓
+                         ADVISOR
+```
+
+---
+
+## ALL PATTERNS CHECKLIST — Sergio bi mogao pitati o bilo čemu od ovoga
+
+| Pattern | Status | Source |
+|---|---|---|
+| Pydantic schema validation | ✅ | moments |
+| Idempotency (PK + read-before-write) | ✅ | moments |
+| Parameterized queries | ✅ | moments |
+| Sync/async/background decision | ✅ | moments |
+| Decoupled architecture (API/worker) | ✅ | moments |
+| Polling queue | ✅ | moments |
+| Mock with deliberate failures | ✅ | moments |
+| Retry + exp backoff + jitter | ✅ | moments |
+| Dead Letter Queue | ✅ | moments |
+| Circuit breaker (open/half-open/closed) | ✅ | moments |
+| Rate limiting (token bucket) | 🔲 | sutra |
+| Bulk onboarding | 🔲 | sutra |
+| Suppression / anti-fatigue | 🔲 | sutra |
+| Client memory store | 🔲 | sutra |
+| Temporal weighting (exponential decay) | 🔲 | sri |
+| Multi-agent orchestration | 🔲 | sri |
+| Score combination | 🔲 | sri |
+| Multi-tenant isolation | 🔲 | sutra |
+| Observability (logs/metrics) | 🔲 | čet |
+| Hybrid search (BM25 + dense) | 🟡 verbal | PravoAI |
+| Reranking (cross-encoder) | 🟡 verbal | PravoAI |
+| Citation grounding | 🟡 verbal | PravoAI |
+| RAG evaluation framework | 🟡 verbal | PravoAI |
+| Vector DB (pgvector) | 🟡 verbal | PravoAI |
+| Auth/RBAC multi-tenant | 🟡 verbal | — |
+| Audit logging compliance | 🟡 verbal | — |
+| Cost optimization (LLM) | 🟡 verbal | — |
+| Real Anthropic SDK patterns | 🟡 verbal | — |
+
+**Cifre:**
+- Već u kodu: **10** patterns
+- Dodaćemo u kodu: **9** patterns
+- Verbal coverage: **9** patterns
+- **Ukupno: 28 patterns. Pokrivaš sve.**
+
+---
+
+## VERBAL TALKING POINTS BANK (sa PravoAI bazom)
+
+### Embeddings + Vector DB
+> *"PravoAI uses pgvector with HNSW index. Documents chunked at ~500 tokens with 100 token overlap. Embedding model: text-embedding-3-large."*
+
+### Hybrid search
+> *"BM25 for keyword + dense retrieval for semantic. Reciprocal Rank Fusion to combine. RRF beats weighted sum because it's score-distribution-agnostic."*
+
+### Reranking
+> *"Top 50 from hybrid retrieval → cross-encoder rerank → top 5 to LLM. Cross-encoder is slower but much higher precision than bi-encoder alone."*
+
+### Citation grounding
+> *"LLM forced to cite source chunks. Post-generation check: every claim must trace back to retrieved context. Hallucination rate ~12% → ~2%."*
+
+### Eval framework
+> *"Golden set of 200 query-answer pairs. Measured: precision@k, recall@k, faithfulness (LLM-as-judge), context relevance. Re-run after every model swap or prompt change."*
+
+### Agentic orchestration
+> *"Each agent has single responsibility. Failures isolate — if notifier breaks, signals queue up but scoring keeps going. Each scales independently. State flows through the queue, not shared memory."*
+
+### Reliability stacked patterns
+> *"Three stacked patterns: retry with exp backoff + jitter (1, 2, 4s + random jitter — prevents thundering herd), DLQ after 4 exhausted attempts (audit trail + replay), circuit breaker after 5 consecutive failures (30s cooldown, then half-open test, then closed). In-memory per worker — production would persist to Redis."*
+
+### Real LLM patterns (Anthropic SDK)
+> *"messages.create with system + user messages. Streaming for advisor UI responsiveness. Tool calling for structured outputs — JSON schema enforced by the model. Token counting via response.usage. Rate limit handling via 429 + Retry-After header. Cost tracking per tenant in a metering table."*
+
+### Auth / multi-tenant
+> *"JWT with tenant_id claim. Middleware extracts tenant from token, injects into every downstream call. Row-level: all queries filtered by tenant_id, enforced in DAL not at endpoint. Audit log per request."*
+
+### Cost optimization at 1100 advisors
+> *"Tier signals — cheap first-pass classifier (small model) filters obvious non-moments. Expensive scoring (Sonnet/Opus) only on candidates. Cache embeddings (deterministic). Batch where possible. Cost ceiling per tenant per day."*
+
+---
+
+## REALISTIC SUCCESS PROBABILITY
+
+**Coverage: ~85-90%** of likely Sergio questions.
+
+**Remaining 10-15% risk:**
+1. Unexpected production-experience question (we don't have one)
+2. English fluency under stress (drill heavily ČET)
+3. Behavioral ("disagreement with co-founder", "biggest failure") — not yet drilled
+
+**Mitigation:** ČET mock interview hits all three.

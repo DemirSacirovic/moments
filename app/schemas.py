@@ -23,3 +23,14 @@ class JobAccepted(BaseModel):
     job_id: str
     event_id: str
     status: str = "queued"
+
+class BulkOnboardRequest(BaseModel):
+    """Batch of events for bulk onboarding."""
+    events: list[EventIn]
+
+class BulkOnboardResponse(BaseModel):
+    """Summary of bulk onboarding."""
+    submitted: int
+    new_inserts: int
+    duplicates: int
+    errors: list[dict] = Field(default_factory=list)
